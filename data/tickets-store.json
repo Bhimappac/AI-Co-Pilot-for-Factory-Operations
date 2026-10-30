@@ -1,0 +1,16 @@
+[
+  {
+    "id": 101,
+    "machine": "Machine 3",
+    "title": "Feed roller jam E-204",
+    "description": "Debris cleared.",
+    "priority": "high",
+    "status": "approved",
+    "source_chunk_ids": [
+      1
+    ],
+    "approved_by": "Operator Dave",
+    "created_at": "2026-10-29T19:23:33.346Z",
+    "decided_at": "2026-10-29T19:23:33.346Z"
+  }
+]
