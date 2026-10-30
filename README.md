@@ -260,3 +260,5 @@ Deploying OpsPilot to Vercel takes under 2 minutes:
 <div align="center">
   <sub>Built with ❤️ for factory operators and safety engineers. OpsPilot — Keeping factory lines running safely.</sub>
 </div>
+#   O p s P i l o t - Y o u r - A I - C o - P i l o t - f o r - F a c t o r y - O p e r a t i o n s  
+ 
