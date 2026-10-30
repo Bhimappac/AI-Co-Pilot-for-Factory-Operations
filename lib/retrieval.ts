@@ -1,9 +1,18 @@
 import fs from "fs";
 import path from "path";
+import dns from "dns";
 import dotenv from "dotenv";
 import { embed } from "ai";
 import { getEmbeddingModel, validateEmbeddingEnv } from "./models";
 import { getDbPool } from "./db";
+
+function isHostResolvable(hostname: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    dns.lookup(hostname, (err, address) => {
+      resolve(!err && !!address);
+    });
+  });
+}
 
 dotenv.config();
 dotenv.config({ path: ".env.local" });
@@ -127,15 +136,29 @@ export async function searchChunks(
   const embCheck = validateEmbeddingEnv();
 
   if (embCheck.valid) {
-    try {
-      const model = getEmbeddingModel();
-      const res = await embed({
-        model,
-        value: userQuery,
-      });
-      queryEmbedding = res.embedding;
-    } catch (e: any) {
-      console.warn("[OpsPilot Retrieval] Embedding generation error:", e.message);
+    const rawProvider = (process.env.EMBEDDING_PROVIDER || "google").toLowerCase();
+    const hostname =
+      rawProvider === "voyage"
+        ? "api.voyageai.com"
+        : rawProvider === "openai"
+        ? "api.openai.com"
+        : rawProvider === "ollama"
+        ? "localhost"
+        : "generativelanguage.googleapis.com";
+
+    const isHostOnline = hostname === "localhost" || (await isHostResolvable(hostname));
+
+    if (isHostOnline) {
+      try {
+        const model = getEmbeddingModel();
+        const res = await embed({
+          model,
+          value: userQuery,
+        });
+        queryEmbedding = res.embedding;
+      } catch (e: any) {
+        console.warn("[OpsPilot Retrieval] Embedding generation error:", e.message);
+      }
     }
   }
 

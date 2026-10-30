@@ -1,3 +1,4 @@
+import dns from "dns";
 import { streamText, tool, createDataStreamResponse, formatDataStreamPart } from "ai";
 import { z } from "zod";
 import { searchChunks } from "@/lib/retrieval";
@@ -21,19 +22,35 @@ Do NOT guess, do NOT use outside knowledge, and do NOT provide conversational fi
 
 const REFUSAL_TEXT = "I couldn't find this in the approved procedures.";
 
+function isHostResolvable(hostname: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    dns.lookup(hostname, (err, address) => {
+      resolve(!err && !!address);
+    });
+  });
+}
+
 // Proactively checks if the provider's external API is reachable on the current network
 async function isProviderReachable(provider: string): Promise<boolean> {
-  const endpoint =
+  if (provider === "ollama") return true;
+
+  const hostname =
     provider === "anthropic"
-      ? "https://api.anthropic.com"
+      ? "api.anthropic.com"
       : provider === "openai"
-      ? "https://api.openai.com"
-      : "https://generativelanguage.googleapis.com";
+      ? "api.openai.com"
+      : "generativelanguage.googleapis.com";
+
+  // Fast DNS resolution preflight (< 5ms)
+  const resolvable = await isHostResolvable(hostname);
+  if (!resolvable) {
+    return false;
+  }
 
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 1200);
-    const res = await fetch(endpoint, {
+    const timeout = setTimeout(() => controller.abort(), 1000);
+    const res = await fetch(`https://${hostname}`, {
       method: "HEAD",
       signal: controller.signal,
     }).catch(() => null);
