@@ -34,28 +34,27 @@ function isHostResolvable(hostname: string): Promise<boolean> {
 async function isProviderReachable(provider: string): Promise<boolean> {
   if (provider === "ollama") return true;
 
-  const hostname =
-    provider === "anthropic"
-      ? "api.anthropic.com"
-      : provider === "openai"
-      ? "api.openai.com"
-      : "generativelanguage.googleapis.com";
-
-  // Fast DNS resolution preflight (< 5ms)
-  const resolvable = await isHostResolvable(hostname);
-  if (!resolvable) {
-    return false;
-  }
-
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 1000);
-    const res = await fetch(`https://${hostname}`, {
-      method: "HEAD",
+    const timeout = setTimeout(() => controller.abort(), 1200);
+
+    let testUrl = "";
+    if (provider === "google") {
+      const key = process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY || "";
+      testUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${key}`;
+    } else if (provider === "anthropic") {
+      testUrl = "https://api.anthropic.com";
+    } else if (provider === "openai") {
+      testUrl = "https://api.openai.com/v1/models";
+    }
+
+    const res = await fetch(testUrl, {
+      method: "GET",
       signal: controller.signal,
     }).catch(() => null);
+
     clearTimeout(timeout);
-    return res !== null && res !== undefined;
+    return res !== null && res.ok;
   } catch {
     return false;
   }
@@ -215,9 +214,11 @@ export async function POST(req: Request) {
 
     const chatEnv = validateChatEnv();
     const isOnline = chatEnv.valid ? await isProviderReachable(chatEnv.provider) : false;
+    console.log(`[OpsPilot Chat API] Query: "${userQuery.slice(0, 40)}", provider: ${chatEnv.provider}, isOnline: ${isOnline}`);
 
     // 1. If configured chat provider is valid AND endpoint is reachable, use live streamText
     if (chatEnv.valid && isOnline) {
+      console.log("[OpsPilot Chat API] Route: attempting live streamText via", chatEnv.provider);
       try {
         const chatModel = getChatModel();
         const result = streamText({

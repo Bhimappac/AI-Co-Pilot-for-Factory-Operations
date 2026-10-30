@@ -137,16 +137,29 @@ export async function searchChunks(
 
   if (embCheck.valid) {
     const rawProvider = (process.env.EMBEDDING_PROVIDER || "google").toLowerCase();
-    const hostname =
-      rawProvider === "voyage"
-        ? "api.voyageai.com"
-        : rawProvider === "openai"
-        ? "api.openai.com"
-        : rawProvider === "ollama"
-        ? "localhost"
-        : "generativelanguage.googleapis.com";
-
-    const isHostOnline = hostname === "localhost" || (await isHostResolvable(hostname));
+    let isHostOnline = false;
+    if (rawProvider === "ollama") {
+      isHostOnline = true;
+    } else {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 1000);
+        let testUrl = "";
+        if (rawProvider === "google") {
+          const key = process.env.GOOGLE_GENERATIVE_AI_API_KEY || process.env.GEMINI_API_KEY || "";
+          testUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${key}`;
+        } else if (rawProvider === "voyage") {
+          testUrl = "https://api.voyageai.com";
+        } else if (rawProvider === "openai") {
+          testUrl = "https://api.openai.com/v1/models";
+        }
+        const res = await fetch(testUrl, { signal: controller.signal }).catch(() => null);
+        clearTimeout(timeout);
+        isHostOnline = res !== null && res.ok;
+      } catch {
+        isHostOnline = false;
+      }
+    }
 
     if (isHostOnline) {
       try {
