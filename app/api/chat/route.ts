@@ -21,7 +21,30 @@ Do NOT guess, do NOT use outside knowledge, and do NOT provide conversational fi
 
 const REFUSAL_TEXT = "I couldn't find this in the approved procedures.";
 
-// Deterministic SOP response generator for local offline mode or fallback
+// Proactively checks if the provider's external API is reachable on the current network
+async function isProviderReachable(provider: string): Promise<boolean> {
+  const endpoint =
+    provider === "anthropic"
+      ? "https://api.anthropic.com"
+      : provider === "openai"
+      ? "https://api.openai.com"
+      : "https://generativelanguage.googleapis.com";
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 1200);
+    const res = await fetch(endpoint, {
+      method: "HEAD",
+      signal: controller.signal,
+    }).catch(() => null);
+    clearTimeout(timeout);
+    return res !== null && res !== undefined;
+  } catch {
+    return false;
+  }
+}
+
+// Deterministic SOP response generator for offline environments, campus firewalls, or fallback
 function generateLocalSopResponse(
   userQuery: string,
   chunks: Array<{ chunkId: number; title: string; section: string; content: string; similarity: number }>
@@ -174,9 +197,10 @@ export async function POST(req: Request) {
     const userQuery = typeof lastMessage.content === "string" ? lastMessage.content : "";
 
     const chatEnv = validateChatEnv();
+    const isOnline = chatEnv.valid ? await isProviderReachable(chatEnv.provider) : false;
 
-    // 1. If configured chat provider environment is valid, use live streamText
-    if (chatEnv.valid) {
+    // 1. If configured chat provider is valid AND endpoint is reachable, use live streamText
+    if (chatEnv.valid && isOnline) {
       try {
         const chatModel = getChatModel();
         const result = streamText({
@@ -249,14 +273,14 @@ export async function POST(req: Request) {
         return result.toDataStreamResponse();
       } catch (geminiError: any) {
         console.warn(
-          "[OpsPilot Chat API] Google Gemini API streaming error, switching to deterministic SOP engine:",
+          `[OpsPilot Chat API] ${chatEnv.provider} streaming error, falling back to local SOP engine:`,
           geminiError.message
         );
       }
     }
 
-    // 2. High-reliability fallback / Local SOP Simulation Stream:
-    // Ensures the demo flow (a, b, c, d, e) works instantly even before the user pastes their Gemini key
+    // 2. High-reliability fallback / Local SOP RAG Stream:
+    // Ensures zero downtime and zero crashes on offline campus Wi-Fi, DNS restrictions, or firewall blocks
     const chunks = await searchChunks(userQuery, 4);
     const { answer, toolCall } = generateLocalSopResponse(userQuery, chunks);
 
