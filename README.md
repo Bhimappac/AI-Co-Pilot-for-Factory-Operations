@@ -205,3 +205,5 @@ Follow this script during your hackathon demonstration:
 | **1:45 - 2:15** | Type out-of-scope query: **"What is the CEO's annual salary?"** | *"Safety and compliance require strict hallucination boundaries. OpsPilot refuses immediately: 'I couldn't find this in the approved procedures.' It never guesses or offers irrelevant chat."* |
 | **2:15 - 2:45** | Type: **"Create a high-priority ticket for this"** | *"OpsPilot never writes records or actuates machinery on its own. Instead, it generates an interactive Ticket Draft Card. The operator can edit the machine, priority, and diagnostic notes, and signs with their badge ID."* |
 | **2:45 - 3:00** | Click **"Approve & Save Ticket"**, then click **"View in Audit Trail"** | *"Upon approval, the ticket is saved as #101. Navigating to /tickets reveals the immutable audit trail, complete with timestamp, operator sign-off, and procedure grounding tags."* |
+#   O p s P i l o t - Y o u r - A I - C o - P i l o t - f o r - F a c t o r y - O p e r a t i o n s  
+ 
